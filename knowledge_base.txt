@@ -1,0 +1,139 @@
+Shipping & Delivery
+Q: Do you offer international shipping?
+A: Yes, we offer international shipping to select countries. International delivery typically takes 7-14 business days, depending on the destination and customs processing.
+
+Q: How much does standard shipping cost?
+A: Standard shipping costs $8 for orders under $75. Orders of $75 or more qualify for free standard shipping.
+
+Q: How much does express shipping cost?
+A: Express shipping costs an additional $15 and typically takes 2-3 business days.
+
+Q: Can I track my order?
+A: Yes. Once your order ships, you will receive a tracking number by email. You can use the tracking number to monitor your package.
+
+Q: When will my order be shipped?
+A: Orders are usually processed and shipped within 1-2 business days after purchase.
+
+Q: What should I do if my order is delayed?
+A: If your order has exceeded the estimated delivery window, please contact customer support with your order number so we can investigate the shipment.
+
+Q: Do you ship to PO boxes?
+A: Yes, standard shipping is available to PO boxes. Express delivery may not be available for all PO box addresses.
+Returns & Exchanges
+
+Q: What is your return policy?
+A: We accept returns within 30 days of delivery. Items must be unworn and in original packaging.
+
+Q: Can I exchange an item instead of returning it?
+A: Yes, exchanges are available for eligible items within 30 days of delivery. The replacement item is subject to availability.
+
+Q: Are sale items eligible for returns?
+A: Sale items are eligible for returns unless they are specifically marked as final sale.
+
+Q: Can I return an item without its original packaging?
+A: Items must be returned in their original packaging to qualify for a return.
+
+Q: How long does it take to receive my refund?
+A: Once your return is received and approved, refunds are typically processed within 5-7 business days. Your bank may require additional time to post the refund.
+
+Q: Do I have to pay for return shipping?
+A: Customers are responsible for return shipping costs unless the item received was defective, damaged, or incorrect.
+
+Q: What if I received a damaged or incorrect item?
+A: Please contact customer support within 7 days of delivery with your order number and photos of the item. We will help arrange a replacement or refund.
+Orders
+
+Q: Can I cancel my order after placing it?
+A: Orders can be canceled within 2 hours of purchase, provided they have not yet been processed for shipment.
+
+Q: Can I change my shipping address after ordering?
+A: Address changes may be possible if the order has not yet been processed. Contact customer support as soon as possible with your order number.
+
+Q: Can I modify my order after placing it?
+A: Orders cannot be modified once they have entered the processing stage. If you need a different size or item, you may need to cancel the order and place a new one.
+
+Q: What should I do if I didn't receive my order?
+A: First, check the tracking information and confirm that the package was not left with a neighbor or in a designated delivery location. If you still cannot locate it, contact customer support.
+
+Q: Can I place an order over the phone?
+A: Orders must be placed through our online store. Our customer support team can assist you with questions about products and the ordering process.
+Products & Sizing
+
+Q: How do I choose the right size?
+A: Please refer to the size guide available on each product page. Compare the listed measurements with a similar item that fits you well.
+
+Q: Are your clothes true to size?
+A: Most of our products follow standard sizing, but fit can vary by style. Check the individual product description and size guide for specific fit information.
+
+Q: Do you offer plus sizes?
+A: Selected styles are available in extended sizes. Available sizes are listed on each product page.
+
+Q: How should I care for my clothing?
+A: Care instructions vary by product. Always check the care label inside the garment before washing or drying.
+
+Q: Will you restock sold-out items?
+A: Some popular items are restocked based on demand. You can sign up for restock notifications on eligible product pages.
+
+Q: How can I find out what material an item is made from?
+A: Fabric and material information is listed in the product description on each product page.
+Payments
+
+Q: What payment methods do you accept?
+A: We accept major credit and debit cards, as well as other payment methods displayed during checkout.
+
+Q: Is my payment information secure?
+A: Yes. Payments are processed through secure payment systems designed to protect your financial information.
+
+Q: When will I be charged for my order?
+A: Your payment is generally charged when your order is placed successfully.
+
+Q: Why was my payment declined?
+A: A payment may be declined because of incorrect card information, insufficient funds, bank restrictions, or security checks. Please verify your details or contact your bank if the issue continues.
+Discounts & Promotions
+
+Q: Do you offer discount codes?
+A: Yes, promotional discount codes may occasionally be offered through our website, newsletter, or official social media channels.
+
+Q: Can I use multiple discount codes on one order?
+A: Only one promotional discount code can be applied per order unless otherwise stated in the promotion terms.
+
+Q: Can I use a discount code on sale items?
+A: Discount codes generally cannot be combined with sale prices unless the promotion specifically states otherwise.
+
+Q: Do you offer student discounts?
+A: Student discounts may be available during selected promotional periods. Please check our website for current offers.
+
+Customer Support
+
+Q: How can I contact customer support?
+A: You can contact our customer support team through the contact form on our website or by emailing our support team.
+
+Q: What are your customer support hours?
+A: Customer support is available Monday through Friday, from 9:00 AM to 6:00 PM.
+
+Q: How long does customer support take to respond?
+A: We typically respond to customer inquiries within 1 business day.
+
+Q: Can I get help choosing an outfit or product?
+A: Yes. Our customer support team can provide general recommendations based on your preferred style, size, color, and occasion.
+
+A few important KB entries I'd add specifically for an AI chatbot
+These help prevent the bot from making assumptions:
+
+Q: Are shipping times guaranteed?
+A: No. Shipping times are estimates and may be affected by weekends, holidays, weather, carrier delays, or customs processing.
+
+Q: Can I return an item that I have worn?
+A: No. Returned items must be unworn and in their original condition and packaging.
+
+Q: Does free shipping apply to express delivery?
+A: No. Free shipping applies to eligible standard shipping orders. Express shipping costs an additional $15.
+
+Q: What happens if an item I want is out of stock?
+A: You can check the product page for restock notifications when available. Restock timing varies by product.
+
+Q: Can customer support guarantee that an item will be restocked?
+A: No. Restocks depend on product availability and demand, so we cannot guarantee that a sold-out item will return.
+
+Q: Can I return an item after 30 days?
+A: Returns must generally be initiated within 30 days of delivery. Exceptions may apply only where specifically stated by the brand.
