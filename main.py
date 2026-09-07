@@ -3,11 +3,12 @@ from pydantic import BaseModel
 from openai import OpenAI
 import json
 from tools import check_order_status, create_ticket, escalate_to_human
+from db import create_conversation, save_message
 
 app = FastAPI()
 client = OpenAI(
-base_url="http://localhost:11434/v1",
-api_key="ollama"
+    base_url="http://localhost:11434/v1",
+    api_key="ollama"
 )
 
 tools = [
@@ -70,26 +71,31 @@ TOOL_MAP = {
     "escalate_to_human": escalate_to_human,
 }
 
-
 class ChatRequest(BaseModel):
     message: str
 
-
 @app.post("/chat")
 def chat(request: ChatRequest):
+    conversation_id = create_conversation()
+
     messages = [
         {
             "role": "system",
-            "content": """ou are a helpful customer service assistant for a clothing brand.
+            "content": """You are a helpful customer service assistant for a clothing brand.
 Use the available tools when appropriate:
 - check_order_status: when a customer asks about an order
 - create_ticket: when a customer reports a problem that needs tracking
 - escalate_to_human: when a customer is frustrated or requests a human agent
 
-When you receive a tool result, summarise it naturally in plain English. Never repeat the function call syntax in your response."""
+When you receive a tool result, summarize it naturally in plain English. Never repeat the function call syntax in your response."""
         },
-        {"role": "user", "content": request.message}
+        {
+            "role": "user",
+            "content": request.message
+        }
     ]
+
+    save_message(conversation_id, "user", request.message)
 
     response = client.chat.completions.create(
         model="qwen2.5",
@@ -99,56 +105,34 @@ When you receive a tool result, summarise it naturally in plain English. Never r
 
     choice = response.choices[0]
 
-    if choice.finish_reason == "tool_calls" and choice.message.tool_calls:
-        # Append the assistant's message as a plain dict (not the raw SDK object)
-        # so it serializes correctly on the next API call, including all tool_calls.
+    if choice.finish_reason == "tool_calls":
+        tool_call = choice.message.tool_calls[0]
+        tool_name = tool_call.function.name
+        arguments = json.loads(tool_call.function.arguments)
+
+        tool_fn = TOOL_MAP.get(tool_name)
+        if tool_fn:
+            tool_result = tool_fn(**arguments)
+        else:
+            tool_result = {"error": f"Unknown tool: {tool_name}"}
+
+        messages.append(choice.message)
         messages.append({
-            "role": "assistant",
-            "content": choice.message.content,
-            "tool_calls": [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments
-                    }
-                }
-                for tc in choice.message.tool_calls
-            ]
+            "role": "tool",
+            "tool_call_id": tool_call.id,
+            "content": json.dumps(tool_result)
         })
-
-        # Handle EVERY tool call the model asked for, not just the first one.
-        for tool_call in choice.message.tool_calls:
-            tool_name = tool_call.function.name
-            tool_fn = TOOL_MAP.get(tool_name)
-
-            try:
-                arguments = json.loads(tool_call.function.arguments)
-            except json.JSONDecodeError:
-                tool_result = {"error": "Invalid arguments returned by model"}
-            else:
-                if tool_fn is None:
-                    tool_result = {"error": f"Unknown tool: {tool_name}"}
-                else:
-                    try:
-                        tool_result = tool_fn(**arguments)
-                    except Exception as e:
-                        tool_result = {"error": f"Tool execution failed: {str(e)}"}
-
-            # Each tool result must be its own message, matched by tool_call_id.
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": json.dumps(tool_result)
-            })
 
         final_response = client.chat.completions.create(
             model="qwen2.5",
-            messages=messages
+            messages=messages,
+            tools=tools
         )
 
-        return {"reply": final_response.choices[0].message.content}
+        reply = final_response.choices[0].message.content
+        save_message(conversation_id, "assistant", reply)
+        return {"reply": reply, "conversation_id": conversation_id}
 
-    # No tool needed — return direct response
-    return {"reply": choice.message.content}
+    reply = choice.message.content
+    save_message(conversation_id, "assistant", reply)
+    return {"reply": reply, "conversation_id": conversation_id}
