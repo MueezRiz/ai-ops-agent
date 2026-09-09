@@ -36,3 +36,21 @@ def save_message(conversation_id: str, role: str, content: str):
     conn.commit()
     cur.close()
     conn.close()
+
+def get_messages(conversation_id: str, limit: int = 10) -> list[dict]:
+    """Loads the last N messages for a conversation, ordered oldest first."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT role, content FROM messages
+        WHERE conversation_id = %s
+        ORDER BY created_at ASC
+        LIMIT %s
+        """,
+        (conversation_id, limit)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [{"role": row[0], "content": row[1]} for row in rows]

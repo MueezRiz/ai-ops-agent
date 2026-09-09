@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from openai import OpenAI
 import json
 from tools import check_order_status, create_ticket, escalate_to_human
-from db import create_conversation, save_message
+from db import create_conversation, save_message, get_messages
+from typing import Optional
+
 
 app = FastAPI()
 client = OpenAI(
@@ -73,10 +75,16 @@ TOOL_MAP = {
 
 class ChatRequest(BaseModel):
     message: str
+    conversation_id: Optional[str] = None
 
 @app.post("/chat")
 def chat(request: ChatRequest):
-    conversation_id = create_conversation()
+    if request.conversation_id:
+        conversation_id = request.conversation_id
+    else:
+        conversation_id = create_conversation()
+
+    history = get_messages(conversation_id)
 
     messages = [
         {
@@ -88,12 +96,11 @@ Use the available tools when appropriate:
 - escalate_to_human: when a customer is frustrated or requests a human agent
 
 When you receive a tool result, summarize it naturally in plain English. Never repeat the function call syntax in your response."""
-        },
-        {
-            "role": "user",
-            "content": request.message
         }
     ]
+
+    messages.extend(history)
+    messages.append({"role": "user", "content": request.message})
 
     save_message(conversation_id, "user", request.message)
 
