@@ -112,34 +112,45 @@ When you receive a tool result, summarize it naturally in plain English. Never r
 
     choice = response.choices[0]
 
-    if choice.finish_reason == "tool_calls":
-        tool_call = choice.message.tool_calls[0]
-        tool_name = tool_call.function.name
+    
+if choice.finish_reason == "tool_calls":
+    tool_call = choice.message.tool_calls[0]
+    tool_name = tool_call.function.name
+
+    try:
         arguments = json.loads(tool_call.function.arguments)
-
-        tool_fn = TOOL_MAP.get(tool_name)
-        if tool_fn:
-            tool_result = tool_fn(**arguments)
-        else:
-            tool_result = {"error": f"Unknown tool: {tool_name}"}
-
-        messages.append(choice.message)
-        messages.append({
-            "role": "tool",
-            "tool_call_id": tool_call.id,
-            "content": json.dumps(tool_result)
-        })
-
-        final_response = client.chat.completions.create(
-            model="qwen2.5",
-            messages=messages,
-            tools=tools
-        )
-
-        reply = final_response.choices[0].message.content
+    except json.JSONDecodeError as e:
+        reply = "I tried to use a tool but something went wrong parsing the request. Could you rephrase that?"
         save_message(conversation_id, "assistant", reply)
         return {"reply": reply, "conversation_id": conversation_id}
 
-    reply = choice.message.content
+    tool_fn = TOOL_MAP.get(tool_name)
+
+    if not tool_fn:
+        reply = f"I tried to use an unknown tool '{tool_name}'. Please try again."
+        save_message(conversation_id, "assistant", reply)
+        return {"reply": reply, "conversation_id": conversation_id}
+
+    try:
+        tool_result = tool_fn(**arguments)
+    except Exception as e:
+        reply = "I ran into an issue while processing your request. Please try again or rephrase your question."
+        save_message(conversation_id, "assistant", reply)
+        return {"reply": reply, "conversation_id": conversation_id}
+
+    messages.append(choice.message)
+    messages.append({
+        "role": "tool",
+        "tool_call_id": tool_call.id,
+        "content": json.dumps(tool_result)
+    })
+
+    final_response = client.chat.completions.create(
+        model="qwen2.5",
+        messages=messages,
+        tools=tools
+    )
+
+    reply = final_response.choices[0].message.content
     save_message(conversation_id, "assistant", reply)
     return {"reply": reply, "conversation_id": conversation_id}
