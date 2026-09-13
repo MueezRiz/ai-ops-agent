@@ -34,13 +34,17 @@ curl -X POST http://127.0.0.1:8000/chat \
   -d '{"message": "What is the status of order 123?"}'
 ```
 
+## How RAG Works in This Project
+
+The knowledge base is split into chunks of roughly 200-400 tokens using LangChain's text splitter. Each chunk is converted into a vector embedding and stored in a local Chroma database by running `ingest.py`. When a user sends a message, the query is embedded and compared against all stored chunks — the top 3 most relevant chunks are retrieved and injected into the system prompt before the LLM is called. If no chunks score above the relevance threshold, the bot responds with a fallback message instead of guessing.
+
 ## Project Status
 
 | Week | Focus | Status |
 |------|-------|--------|
 | 1 | Skeleton backend + basic chatbot | Done |
 | 2 | Multi-tool agent + memory | Done |
-| 3 | RAG pipeline | Upcoming |
+| 3 | RAG pipeline | Done |
 | 4 | RAG tuning | Upcoming |
 | 5 | LangGraph agent loop | Upcoming |
 | 6 | Agent robustness | Upcoming |
