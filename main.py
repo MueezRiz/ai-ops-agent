@@ -86,7 +86,6 @@ def chat(request: ChatRequest):
         conversation_id = create_conversation()
 
     history = get_messages(conversation_id)
-
     retrieved_chunks = retrieve(request.message)
 
     if retrieved_chunks:
@@ -100,7 +99,7 @@ def chat(request: ChatRequest):
             "role": "system",
             "content": f"""You are a helpful customer service assistant for a clothing brand.
 
-    {context_block}
+{context_block}
 
 Use the available tools when appropriate:
 - check_order_status: when a customer asks about an order
@@ -113,7 +112,6 @@ When you receive a tool result, summarize it naturally in plain English. Never r
 
     messages.extend(history)
     messages.append({"role": "user", "content": request.message})
-
     save_message(conversation_id, "user", request.message)
 
     response = client.chat.completions.create(
@@ -128,20 +126,14 @@ When you receive a tool result, summarize it naturally in plain English. Never r
         tool_call = choice.message.tool_calls[0]
         tool_name = tool_call.function.name
 
-    else:
-        reply = choice.message.content
-        save_message(conversation_id, "assistant", reply)
-        return {"reply": reply, "conversation_id": conversation_id}
-
         try:
             arguments = json.loads(tool_call.function.arguments)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             reply = "I tried to use a tool but something went wrong parsing the request. Could you rephrase that?"
             save_message(conversation_id, "assistant", reply)
             return {"reply": reply, "conversation_id": conversation_id}
 
         tool_fn = TOOL_MAP.get(tool_name)
-
         if not tool_fn:
             reply = f"I tried to use an unknown tool '{tool_name}'. Please try again."
             save_message(conversation_id, "assistant", reply)
@@ -149,7 +141,7 @@ When you receive a tool result, summarize it naturally in plain English. Never r
 
         try:
             tool_result = tool_fn(**arguments)
-        except Exception as e:
+        except Exception:
             reply = "I ran into an issue while processing your request. Please try again or rephrase your question."
             save_message(conversation_id, "assistant", reply)
             return {"reply": reply, "conversation_id": conversation_id}
@@ -168,5 +160,10 @@ When you receive a tool result, summarize it naturally in plain English. Never r
         )
 
         reply = final_response.choices[0].message.content
+        save_message(conversation_id, "assistant", reply)
+        return {"reply": reply, "conversation_id": conversation_id}
+
+    else:
+        reply = choice.message.content
         save_message(conversation_id, "assistant", reply)
         return {"reply": reply, "conversation_id": conversation_id}

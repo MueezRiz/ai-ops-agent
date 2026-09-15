@@ -7,7 +7,7 @@ with open("knowledge_base.txt", "r") as f:
     text = f.read()
 
 # Split into chunks
-splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=50)
+splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=30)
 chunks = splitter.split_text(text)
 
 # Set up embeddings
