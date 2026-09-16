@@ -11,16 +11,32 @@ def retrieve(query: str, n_results: int = 3) -> list[str]:
     query_embedding = embeddings.embed_query(query)
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=n_results,
+        n_results=10,
         include=["documents", "distances"]
     )
 
     documents = results["documents"][0]
     distances = results["distances"][0]
 
-    filtered = [
-        doc for doc, dist in zip(documents, distances)
+    # Filter by distance threshold
+    candidates = [
+        (doc, dist) for doc, dist in zip(documents, distances)
         if dist < DISTANCE_THRESHOLD
     ]
 
-    return filtered
+    # Keyword boost: move exact keyword matches to the front
+    query_keywords = query.lower().split()
+    keyword_matches = []
+    other_matches = []
+
+    for doc, dist in candidates:
+        doc_lower = doc.lower()
+        if any(keyword in doc_lower for keyword in query_keywords):
+            keyword_matches.append((doc, dist))
+        else:
+            other_matches.append((doc, dist))
+
+    # Combine: keyword matches first, then semantic-only matches
+    combined = keyword_matches + other_matches
+
+    return [doc for doc, dist in combined[:n_results]]
