@@ -1,5 +1,6 @@
 from langchain_ollama import OllamaEmbeddings
 import chromadb
+from openai import OpenAI
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
@@ -18,13 +19,11 @@ def retrieve(query: str, n_results: int = 3) -> list[str]:
     documents = results["documents"][0]
     distances = results["distances"][0]
 
-    # Filter by distance threshold
     candidates = [
         (doc, dist) for doc, dist in zip(documents, distances)
         if dist < DISTANCE_THRESHOLD
     ]
 
-    # Keyword boost: move exact keyword matches to the front
     query_keywords = query.lower().split()
     keyword_matches = []
     other_matches = []
@@ -36,12 +35,10 @@ def retrieve(query: str, n_results: int = 3) -> list[str]:
         else:
             other_matches.append((doc, dist))
 
-    # Combine: keyword matches first, then semantic-only matches
-    combined = keyword_matches + other_matches
-
     combined = keyword_matches + other_matches
     top_candidates = [doc for doc, dist in combined[:10]]
     return rerank(query, top_candidates, top_n=n_results)
+
 
 def rerank(query: str, candidates: list[str], top_n: int = 3) -> list[str]:
     if not candidates:
@@ -64,7 +61,6 @@ Return ONLY the numbers of the {top_n} most relevant passages, in order of relev
 
 Do not explain. Just the numbers."""
 
-    from openai import OpenAI
     llm = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
     response = llm.chat.completions.create(
         model="qwen2.5",
@@ -72,8 +68,6 @@ Do not explain. Just the numbers."""
     )
 
     raw = response.choices[0].message.content.strip()
-    print(f"[RERANK DEBUG] query='{query}' | raw response='{raw}'")
-
 
     try:
         indices = [int(x.strip()) - 1 for x in raw.split(",")]
