@@ -38,6 +38,30 @@ curl -X POST http://127.0.0.1:8000/chat \
 
 The knowledge base is split into chunks of roughly 200-400 tokens using LangChain's text splitter. Each chunk is converted into a vector embedding and stored in a local Chroma database by running `ingest.py`. When a user sends a message, the query is embedded and compared against all stored chunks — the top 3 most relevant chunks are retrieved and injected into the system prompt before the LLM is called. If no chunks score above the relevance threshold, the bot responds with a fallback message instead of guessing.
 
+## RAG Architecture
+
+When a user asks a question, the chatbot retrieves relevant information from a local knowledge base before calling the LLM — this keeps answers grounded in real business data rather than relying on the model's general knowledge.
+
+### How it works
+
+**1. Ingestion (`ingest.py`)**
+The knowledge base (FAQ entries in `knowledge_base.json`) is split into chunks of ~300 tokens using LangChain's text splitter. Each chunk is embedded using `nomic-embed-text` via Ollama and stored in a persistent ChromaDB collection.
+
+**2. Retrieval (`retriever.py`)**
+On each `/chat` request, the user's query is embedded and compared against the knowledge base using vector similarity search. The top 10 candidates are retrieved, then filtered by a distance threshold (0.7) to cut off low-confidence matches.
+
+**3. Keyword boosting**
+Chunks containing exact keywords from the query are promoted to the front of the candidate list before re-ranking. This prevents purely semantic search from missing obvious exact-match answers.
+
+**4. Re-ranking**
+A second LLM call (qwen2.5 via Ollama) acts as a relevance judge — it reads the top candidates and returns the 3 most relevant in order. This two-stage approach (broad retrieval → LLM scoring) consistently outperformed single-stage top-3 retrieval on test questions.
+
+**5. Fallback**
+If all retrieved chunks fall above the distance threshold (no confident match), the bot responds that it doesn't have that information rather than hallucinating an answer.
+
+### Results
+10/10 test questions answered correctly with the full pipeline. See [`rag_test_questions.md`](rag_test_questions.md) for full details.
+
 ## Project Status
 
 | Week | Focus | Status |
@@ -45,7 +69,7 @@ The knowledge base is split into chunks of roughly 200-400 tokens using LangChai
 | 1 | Skeleton backend + basic chatbot | Done |
 | 2 | Multi-tool agent + memory | Done |
 | 3 | RAG pipeline | Done |
-| 4 | RAG tuning | Upcoming |
+| 4 | RAG tuning | Done |
 | 5 | LangGraph agent loop | Upcoming |
 | 6 | Agent robustness | Upcoming |
 | 7 | n8n automations | Upcoming |
