@@ -2,4 +2,11 @@ fastapi
 uvicorn
 psycopg2-binary
 anthropic
-openai
+openailanggraph==0.6.11
+langgraph-checkpoint==2.1.2
+langgraph-prebuilt==0.6.5
+langgraph-sdk==0.2.9
+langgraph==0.6.11
+langgraph-checkpoint==2.1.2
+langgraph-prebuilt==0.6.5
+langgraph-sdk==0.2.9
