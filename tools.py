@@ -5,14 +5,13 @@ from models import (
 )
 
 def check_order_status(order_id: str) -> dict:
-    input_data = OrderStatusInput(order_id=order_id)
-    result = OrderStatusOutput(
-        order_id=input_data.order_id,
-        status="in transit",
-        estimated_delivery="2024-01-18",
-        carrier="UPS"
-    )
-    return result.dict()
+    return {
+        "order_id": order_id,
+        "status": "delayed",
+        "reason": "weather disruption",
+        "carrier": "UPS",
+        "estimated_delivery": "January 25, 2024"
+    }
 
 def create_ticket(issue: str) -> dict:
     input_data = CreateTicketInput(issue=issue)

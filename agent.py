@@ -5,6 +5,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from tools import check_order_status, create_ticket, escalate_to_human
 from retriever import retrieve
+from langchain_core.messages import BaseMessage
+
 
 # LLM setup — runs locally via Ollama, no API key needed
 llm = ChatOllama(model="llama3.2")
@@ -17,6 +19,7 @@ class AgentState(TypedDict):
     tool_input: Optional[dict]
     tool_result: Optional[str]
     final_response: str
+    messages: list[BaseMessage]  
 
 # Wrap your existing tool functions so LangChain can bind them
 @tool
@@ -40,46 +43,66 @@ llm_with_tools = llm.bind_tools(tools)
 # Node 1: retrieve relevant FAQ context for the user's message
 def retrieve_node(state: AgentState) -> AgentState:
     context = retrieve(state["user_message"])
-    return {"retrieved_context": context}
+    system = SystemMessage(content=f"""You are a helpful customer service assistant for a small business.
+Use this context to answer if relevant:\n{context}
+When asked to take action based on a condition, check the condition from tool results and act immediately without asking for confirmation.
+Once you have completed all required actions, give a final summary response to the user.""")
+    human = HumanMessage(content=state["user_message"])
+    return {"retrieved_context": context, "messages": [system, human]}
 
-# Node 2: ask the LLM what to do — answer directly or call a tool
+# Node 2: ask the LLM what to do — loop until no more tool calls
 def decide_node(state: AgentState) -> AgentState:
-    messages = [
-        SystemMessage(content=f"You are a helpful assistant for a small business. Use this context to answer if relevant:\n{state['retrieved_context']}"),
-        HumanMessage(content=state["user_message"])
-    ]
+    response = llm_with_tools.invoke(state["messages"])
+    updated_messages = state["messages"] + [response]
 
-    response = llm_with_tools.invoke(messages)
+    print(f"DEBUG tool_calls: {response.tool_calls}")
+    print(f"DEBUG content: {response.content[:200]}")
 
-    # Check if the model wants to call a tool
     if response.tool_calls:
-        first_tool = response.tool_calls[0]
         return {
-            "tool_name": first_tool["name"],
-            "tool_input": first_tool["args"]
+            "messages": updated_messages,
+            "tool_name": response.tool_calls[0]["name"],   # just for routing
+            "tool_input": response.tool_calls,             # store ALL tool calls
+            "tool_result": None
         }
 
-    # No tool needed — return the text response directly
     return {
+        "messages": updated_messages,
         "tool_name": None,
         "final_response": response.content
     }
 
-# Node 3: actually run whichever tool the LLM chose
+# Node 3: run the chosen tool, then route back to decide for another pass
 def call_tool_node(state: AgentState) -> AgentState:
-    tool = state["tool_name"]
-    tool_input = state.get("tool_input") or {}
+    from langchain_core.messages import ToolMessage
 
-    if tool == "check_order_status_tool":
-        result = check_order_status(tool_input.get("order_id", ""))
-    elif tool == "create_ticket_tool":
-        result = create_ticket(tool_input.get("issue", ""))
-    elif tool == "escalate_to_human_tool":
-        result = escalate_to_human(tool_input.get("reason", ""))
-    else:
-        result = "Unknown tool requested"
+    tool_calls = state.get("tool_input") or []
+    updated_messages = list(state["messages"])
+    results = []
 
-    return {"tool_result": str(result)}
+    for tc in tool_calls:
+        name = tc["name"]
+        args = tc.get("args", {})
+        tool_call_id = tc.get("id", "unknown")
+
+        if name == "check_order_status_tool":
+            result = check_order_status(args.get("order_id", ""))
+        elif name == "create_ticket_tool":
+            result = create_ticket(args.get("issue", ""))
+        elif name == "escalate_to_human_tool":
+            result = escalate_to_human(args.get("reason", ""))
+        else:
+            result = "Unknown tool"
+
+        result_str = str(result)
+        results.append(result_str)
+        print(f"DEBUG ran tool: {name} → {result_str}")
+        updated_messages.append(ToolMessage(content=result_str, tool_call_id=tool_call_id))
+
+    return {
+        "tool_result": " | ".join(results),
+        "messages": updated_messages
+    }
 
 # Node 4: generate a natural final response using the tool result
 def respond_node(state: AgentState) -> AgentState:
@@ -113,20 +136,23 @@ def build_agent():
         "call_tool": "call_tool",
         END: END
     })
-    graph.add_edge("call_tool", "respond")
+    graph.add_edge("call_tool", "decide")  # loop back after each tool call
     graph.add_edge("respond", END)
 
     return graph.compile()
 
 agent = build_agent()
 
+
 if __name__ == "__main__":
     result = agent.invoke({
-        "user_message": "What are your opening hours?",
-        "retrieved_context": "",
-        "tool_name": None,
-        "tool_input": None,
-        "tool_result": None,
-        "final_response": ""
-    })
+    "user_message": request.message,
+    "retrieved_context": "",
+    "tool_name": None,
+    "tool_input": None,
+    "tool_result": None,
+    "final_response": "",
+    "messages": []
+   })
+
     print(result["final_response"])
