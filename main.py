@@ -1,9 +1,9 @@
-
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
 from db import create_conversation, save_message, get_messages
 from agent import agent
+from logger import logger
 
 app = FastAPI()
 
@@ -13,16 +13,15 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat")
 def chat(request: ChatRequest):
-    # Get or create a conversation ID for memory tracking
+    logger.info(f"Received message: {request.message}")
+
     if request.conversation_id:
         conversation_id = request.conversation_id
     else:
         conversation_id = create_conversation()
 
-    # Save the incoming user message to DB
     save_message(conversation_id, "user", request.message)
 
-    # Run the full LangGraph agent — retrieval, decision, tool call, response
     result = agent.invoke({
         "user_message": request.message,
         "retrieved_context": "",
@@ -33,8 +32,8 @@ def chat(request: ChatRequest):
     })
 
     reply = result["final_response"]
+    logger.info(f"Final response generated for conversation {conversation_id}")
 
-    # Save the assistant's reply to DB
     save_message(conversation_id, "assistant", reply)
 
     return {"reply": reply, "conversation_id": conversation_id}
@@ -43,6 +42,7 @@ def chat(request: ChatRequest):
 def test_retry():
     conversation_id = create_conversation()
     user_message = "Can you check the order status for me please?"
+    logger.info(f"Received message: {user_message}")
 
     save_message(conversation_id, "user", user_message)
 
@@ -57,6 +57,7 @@ def test_retry():
     })
 
     reply = result["final_response"]
+    logger.info(f"Final response generated for conversation {conversation_id}")
     save_message(conversation_id, "assistant", reply)
 
     return {"response": reply}

@@ -8,14 +8,12 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
-
 from retriever import retrieve
 from tools import check_order_status, create_ticket, escalate_to_human
-
+from logger import logger
 
 # LLM setup — runs locally via Ollama, no API key needed
 llm = ChatOllama(model="llama3.2")
-
 
 # Everything the agent needs to pass between nodes
 class AgentState(TypedDict):
@@ -28,25 +26,21 @@ class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
     retry_count: int
 
-
 # Wrap your existing tool functions so LangChain can bind them
 @tool
 def check_order_status_tool(order_id: str) -> str:
     """Check the status of an order by order ID."""
     return str(check_order_status(order_id))
 
-
 @tool
 def create_ticket_tool(issue: str) -> str:
     """Create a support ticket for a customer issue."""
     return str(create_ticket(issue))
 
-
 @tool
 def escalate_to_human_tool(reason: str) -> str:
     """Escalate a conversation to a human agent."""
     return str(escalate_to_human(reason))
-
 
 tools = [
     check_order_status_tool,
@@ -56,21 +50,17 @@ tools = [
 
 llm_with_tools = llm.bind_tools(tools)
 
-
 # Node 1: retrieve relevant FAQ context for the user's message
 def retrieve_node(state: AgentState) -> AgentState:
+    logger.info(f"Retrieving context for: {state['user_message']}")
     context = retrieve(state["user_message"])
 
     system = SystemMessage(
-        content=f"""You are a helpful customer service assistant for a small business.
-Use this context to answer if relevant:
-{context}
+        content=f"""You are a helpful customer service assistant for a small business. Use this context to answer if relevant: {context}
 
-When asked to take action based on a condition, check the condition from tool
-results and act immediately without asking for confirmation.
+When asked to take action based on a condition, check the condition from tool results and act immediately without asking for confirmation.
 
-Once you have completed all required actions, give a final summary response
-to the user."""
+Once you have completed all required actions, give a final summary response to the user."""
     )
 
     human = HumanMessage(content=state["user_message"])
@@ -80,23 +70,22 @@ to the user."""
         "messages": [system, human],
     }
 
-
 # Node 2: ask the LLM what to do — loop until no more tool calls
 def decide_node(state: AgentState) -> AgentState:
     response = llm_with_tools.invoke(state["messages"])
     updated_messages = state["messages"] + [response]
 
-    print(f"DEBUG tool_calls: {response.tool_calls}")
-    print(f"DEBUG content: {response.content[:200]}")
-
     if response.tool_calls:
+        tool_name = response.tool_calls[0]["name"]
+        logger.info(f"Tool selected: {tool_name} with args: {response.tool_calls[0].get('args', {})}")
         return {
             "messages": updated_messages,
-            "tool_name": response.tool_calls[0]["name"],
+            "tool_name": tool_name,
             "tool_input": response.tool_calls,
             "tool_result": None,
         }
 
+    logger.info("No tool call — generating final response")
     return {
         "messages": updated_messages,
         "tool_name": None,
@@ -134,7 +123,7 @@ def call_tool_node(state: AgentState):
         validation_error = validate_tool_args(name, args)
 
         if validation_error and retry_count < 1:
-            # Inject a correction message and signal retry
+            logger.warning(f"Retry triggered for {name}: {validation_error}")
             updated_messages.append(
                 ToolMessage(
                     content=f"Error: {validation_error}. Please retry the tool call with all required arguments.",
@@ -142,9 +131,9 @@ def call_tool_node(state: AgentState):
                 )
             )
             needs_retry = True
-            print(f"RETRY triggered for {name}: {validation_error}")
         else:
             try:
+                logger.info(f"Calling tool: {name} with args: {args}")
                 if name == "check_order_status_tool":
                     result = check_order_status(args.get("order_id", ""))
                 elif name == "create_ticket_tool":
@@ -153,9 +142,10 @@ def call_tool_node(state: AgentState):
                     result = escalate_to_human(args.get("reason", ""))
                 else:
                     result = f"Unknown tool: {name}"
+                logger.info(f"Tool {name} returned: {result}")
             except Exception as e:
+                logger.error(f"Tool '{name}' failed with error: {e}")
                 result = f"Tool '{name}' failed with error: {str(e)}"
-                print(f"ERROR in tool {name}: {e}")
 
             updated_messages.append(
                 ToolMessage(content=str(result), tool_call_id=tool_call_id)
@@ -166,6 +156,7 @@ def call_tool_node(state: AgentState):
 
 # Node 4: generate a natural final response using the tool result
 def respond_node(state: AgentState) -> AgentState:
+    logger.info("Generating final response from tool result")
     messages = [
         SystemMessage(
             content=(
@@ -183,14 +174,11 @@ def respond_node(state: AgentState) -> AgentState:
         "final_response": response.content,
     }
 
-
 # Route after decide: tool needed → call_tool, otherwise → END
 def route_after_decide(state: AgentState) -> str:
     if state.get("tool_name"):
         return "call_tool"
-
     return END
-
 
 # Build the graph
 def build_agent():
@@ -218,14 +206,12 @@ def build_agent():
 
     return graph.compile()
 
-
 agent = build_agent()
-
 
 if __name__ == "__main__":
     result = agent.invoke(
         {
-            "user_message": request.message,
+            "user_message": "What are your hours?",
             "retrieved_context": "",
             "tool_name": None,
             "tool_input": None,

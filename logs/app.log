@@ -1,0 +1,10 @@
+2026-09-27 19:39:52,936 [INFO] Received message: What are your working hours?
+2026-09-27 19:39:53,072 [INFO] Retrieving context for: What are your working hours?
+2026-09-27 19:39:53,642 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/embed "HTTP/1.1 200 OK"
+2026-09-27 19:39:58,201 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-09-27 19:39:58,240 [INFO] Tool selected: create_ticket_tool with args: {'issue': 'Our working hours are Monday to Friday, 9am to 5pm EST.'}
+2026-09-27 19:39:58,246 [INFO] Calling tool: create_ticket_tool with args: {'issue': 'Our working hours are Monday to Friday, 9am to 5pm EST.'}
+2026-09-27 19:39:58,247 [INFO] Tool create_ticket_tool returned: {'ticket_id': 'T-456', 'status': 'created', 'issue': 'Our working hours are Monday to Friday, 9am to 5pm EST.', 'created_at': '2024-01-15T10:30:00Z'}
+2026-09-27 19:39:58,503 [INFO] HTTP Request: POST http://127.0.0.1:11434/api/chat "HTTP/1.1 200 OK"
+2026-09-27 19:39:59,236 [INFO] No tool call — generating final response
+2026-09-27 19:39:59,238 [INFO] Final response generated for conversation 75a200c9-3344-4890-83c2-0f1fe17a78ac
