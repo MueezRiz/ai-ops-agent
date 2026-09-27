@@ -38,3 +38,25 @@ def chat(request: ChatRequest):
     save_message(conversation_id, "assistant", reply)
 
     return {"reply": reply, "conversation_id": conversation_id}
+
+@app.post("/test-retry")
+def test_retry():
+    conversation_id = create_conversation()
+    user_message = "Can you check the order status for me please?"
+
+    save_message(conversation_id, "user", user_message)
+
+    result = agent.invoke({
+        "user_message": user_message,
+        "retrieved_context": "",
+        "tool_name": None,
+        "tool_input": None,
+        "tool_result": None,
+        "final_response": "",
+        "retry_count": 0
+    })
+
+    reply = result["final_response"]
+    save_message(conversation_id, "assistant", reply)
+
+    return {"response": reply}

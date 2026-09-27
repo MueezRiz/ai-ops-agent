@@ -1,3 +1,7 @@
+import uuid
+from db import get_connection
+
+
 from models import (
     OrderStatusInput, OrderStatusOutput,
     CreateTicketInput, CreateTicketOutput,
@@ -23,12 +27,15 @@ def create_ticket(issue: str) -> dict:
     )
     return result.dict()
 
-def escalate_to_human(reason: str) -> dict:
-    input_data = EscalateInput(reason=reason)
-    result = EscalateOutput(
-        escalated=True,
-        reason=input_data.reason,
-        assigned_to="support team",
-        estimated_response="within 2 hours"
+
+def escalate_to_human(reason: str) -> str:
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO tickets (id, issue, status, created_at) VALUES (%s, %s, %s, NOW())",
+        (str(uuid.uuid4()), reason, "needs_review")
     )
-    return result.dict()
+    conn.commit()
+    cur.close()
+    conn.close()
+    return f"Escalated to human review. Reason: {reason}"

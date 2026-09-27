@@ -1,9 +1,13 @@
 from typing import Optional, TypedDict
+from typing import Annotated, TypedDict
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
+from langgraph.graph.message import add_messages
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+
 
 from retriever import retrieve
 from tools import check_order_status, create_ticket, escalate_to_human
@@ -21,7 +25,8 @@ class AgentState(TypedDict):
     tool_input: Optional[dict]
     tool_result: Optional[str]
     final_response: str
-    messages: list[BaseMessage]
+    messages: Annotated[list, add_messages]
+    retry_count: int
 
 
 # Wrap your existing tool functions so LangChain can bind them
@@ -98,50 +103,66 @@ def decide_node(state: AgentState) -> AgentState:
         "final_response": response.content,
     }
 
+def validate_tool_args(name: str, args: dict) -> Optional[str]:
+    """Returns an error string if args are invalid, None if OK."""
+    if name == "check_order_status_tool" and not args.get("order_id"):
+        return "Missing required argument: order_id"
+    if name == "create_ticket_tool" and not args.get("issue"):
+        return "Missing required argument: issue"
+    if name == "escalate_to_human_tool" and not args.get("reason"):
+        return "Missing required argument: reason"
+    return None
 
 # Node 3: run the chosen tool, then route back to decide
-def call_tool_node(state: AgentState) -> AgentState:
-    from langchain_core.messages import ToolMessage
+def call_tool_node(state: AgentState):
+    messages = state["messages"]
+    retry_count = state.get("retry_count", 0)
+    last_message = messages[-1]
+    tool_calls = last_message.additional_kwargs.get("tool_calls", [])
 
-    tool_calls = state.get("tool_input") or []
-    updated_messages = list(state["messages"])
-    results = []
+    if hasattr(last_message, "tool_calls"):
+        tool_calls = last_message.tool_calls
+
+    updated_messages = []
+    needs_retry = False
 
     for tc in tool_calls:
         name = tc["name"]
         args = tc.get("args", {})
         tool_call_id = tc.get("id", "unknown")
 
-        try:
-            if name == "check_order_status_tool":
-                result = check_order_status(args.get("order_id", ""))
-            elif name == "create_ticket_tool":
-                result = create_ticket(args.get("issue", ""))
-            elif name == "escalate_to_human_tool":
-                result = escalate_to_human(args.get("reason", ""))
-            else:
-                result = f"Unknown tool: {name}"
+        validation_error = validate_tool_args(name, args)
 
-        except Exception as e:
-            result = f"Tool '{name}' failed with error: {str(e)}"
-            print(f"ERROR in tool {name}: {e}")
-
-        result_str = str(result)
-        results.append(result_str)
-
-        updated_messages.append(
-            ToolMessage(
-                content=result_str,
-                tool_call_id=tool_call_id,
+        if validation_error and retry_count < 1:
+            # Inject a correction message and signal retry
+            updated_messages.append(
+                ToolMessage(
+                    content=f"Error: {validation_error}. Please retry the tool call with all required arguments.",
+                    tool_call_id=tool_call_id
+                )
             )
-        )
+            needs_retry = True
+            print(f"RETRY triggered for {name}: {validation_error}")
+        else:
+            try:
+                if name == "check_order_status_tool":
+                    result = check_order_status(args.get("order_id", ""))
+                elif name == "create_ticket_tool":
+                    result = create_ticket(args.get("issue", ""))
+                elif name == "escalate_to_human_tool":
+                    result = escalate_to_human(args.get("reason", ""))
+                else:
+                    result = f"Unknown tool: {name}"
+            except Exception as e:
+                result = f"Tool '{name}' failed with error: {str(e)}"
+                print(f"ERROR in tool {name}: {e}")
 
-    return {
-        "messages": updated_messages,
-        "tool_result": "\n".join(results),
-        "tool_input": None,
-    }
+            updated_messages.append(
+                ToolMessage(content=str(result), tool_call_id=tool_call_id)
+            )
 
+    new_retry_count = retry_count + 1 if needs_retry else 0
+    return {"messages": updated_messages, "retry_count": new_retry_count}
 
 # Node 4: generate a natural final response using the tool result
 def respond_node(state: AgentState) -> AgentState:
