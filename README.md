@@ -2,7 +2,7 @@
 
 A portfolio project demonstrating an AI-powered customer service agent built with FastAPI, Ollama, and PostgreSQL. The agent handles customer queries for a fictional clothing brand — checking order statuses, creating support tickets, and escalating issues to human agents — with persistent conversation memory across sessions.
 
-This is a learning/portfolio project built to demonstrate tool use, persistent memory, and (upcoming) RAG and agent loop patterns.
+This is a learning/portfolio project built to demonstrate tool use, persistent memory, RAG, and agent loop patterns.
 
 ## Architecture
 
@@ -13,8 +13,8 @@ Requests come in via the `POST /chat` endpoint. The app loads the conversation h
 - FastAPI — backend API
 - Ollama + qwen2.5 — local LLM, no API costs
 - PostgreSQL — conversation and ticket storage
-- ChromaDB — vector store for RAG (coming Week 3)
-- LangGraph — agent loop (coming Week 5)
+- ChromaDB — vector store for RAG
+- LangGraph — agent loop
 - n8n — workflow automation (coming Week 7)
 - Docker — containerization
 
@@ -62,17 +62,35 @@ If all retrieved chunks fall above the distance threshold (no confident match), 
 ### Results
 10/10 test questions answered correctly with the full pipeline. See [`rag_test_questions.md`](rag_test_questions.md) for full details.
 
+## Agent Architecture
+
+The agent is built as a LangGraph state graph with three nodes: **retrieve → decide → call_tool**, looping back from `call_tool` to `decide` until no further tool calls are needed.
+
+On each `/chat` request, the graph first retrieves relevant FAQ context (retrieve node), then asks the LLM whether to answer directly or call a tool (decide node). If a tool is selected, it's executed and the result is appended to the message history before routing back to decide — allowing the agent to chain multiple tool calls in a single turn (e.g. check an order status, then create a ticket if it's delayed). When the LLM produces a response with no tool call, the graph exits and returns `final_response`.
+
+The agent graph diagram is in [`/docs/agent-graph.png`](docs/agent-graph.png).
+
+## Reliability & Error Handling
+
+**Tool exceptions** are caught inside `call_tool_node` — if a tool raises an exception (e.g. a DB failure or bad input), the error is logged and a clean error string is returned as the tool result. The agent then generates a graceful natural language response rather than crashing or returning a 500.
+
+**Retry logic** handles malformed tool calls. If the LLM calls a tool with missing required arguments, a `ToolMessage` error is injected back into the message history and the graph routes to decide again, giving the LLM one chance to self-correct with the full error context. The retry count is tracked in agent state to prevent infinite loops.
+
+**Escalation to database** is real, not mocked — calling `escalate_to_human` inserts a row into the `tickets` table with `status = needs_review`. A separate script (`check_escalations.py`) queries and prints all open escalations.
+
+**Logging** uses Python's `logging` module via `logger.py`. Every tool call, routing decision, retry attempt, and error is written to `logs/app.log` with a timestamp, making it straightforward to trace exactly what the agent did on any given request.
+
 ## Project Status
 
-| Week | Focus | Status |
-|------|-------|--------|
-| 1 | Skeleton backend + basic chatbot | Done |
-| 2 | Multi-tool agent + memory | Done |
-| 3 | RAG pipeline | Done |
-| 4 | RAG tuning | Done |
-| 5 | LangGraph agent loop | Upcoming |
-| 6 | Agent robustness | Upcoming |
-| 7 | n8n automations | Upcoming |
-| 8 | Production hardening | Upcoming |
-| 9 | Deployment | Upcoming |
-| 10 | Portfolio packaging | Upcoming |
+| Week | Focus                        | Status   |
+|------|------------------------------|----------|
+| 1    | Skeleton backend + basic chatbot | ✅ Done |
+| 2    | Multi-tool agent + memory    | ✅ Done  |
+| 3    | RAG pipeline                 | ✅ Done  |
+| 4    | RAG tuning                   | ✅ Done  |
+| 5    | LangGraph agent loop         | ✅ Done  |
+| 6    | Agent robustness             | ✅ Done  |
+| 7    | n8n automations              | Upcoming |
+| 8    | Production hardening         | Upcoming |
+| 9    | Deployment                   | Upcoming |
+| 10   | Portfolio packaging          | Upcoming |
