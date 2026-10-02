@@ -31,16 +31,16 @@ def test_tool_call_triggers_for_order_status():
 
 def test_memory_persists_across_two_calls():
     """Model should recall info from earlier in the same conversation."""
-    # First message
-    r1 = client.post("/chat", json={"message": "My name is TestUser"})
+    # First message — phrased to avoid accidentally triggering a tool
+    r1 = client.post("/chat", json={"message": "For context, my favourite colour is blue"})
     conversation_id = r1.json()["conversation_id"]
 
     # Second message in same conversation
     r2 = client.post("/chat", json={
-        "message": "What is my name?",
+        "message": "What favourite colour did I just mention?",
         "conversation_id": conversation_id
     })
-    assert "TestUser" in r2.json()["reply"]
+    assert "blue" in r2.json()["reply"].lower()
 
 
 def test_new_conversation_has_no_memory_of_previous():

@@ -154,25 +154,6 @@ def call_tool_node(state: AgentState):
     new_retry_count = retry_count + 1 if needs_retry else 0
     return {"messages": updated_messages, "retry_count": new_retry_count}
 
-# Node 4: generate a natural final response using the tool result
-def respond_node(state: AgentState) -> AgentState:
-    logger.info("Generating final response from tool result")
-    messages = [
-        SystemMessage(
-            content=(
-                "You are a helpful assistant. Summarize the tool result "
-                "naturally for the user."
-            )
-        ),
-        HumanMessage(content=state["user_message"]),
-        HumanMessage(content=f"Tool result: {state['tool_result']}"),
-    ]
-
-    response = llm.invoke(messages)
-
-    return {
-        "final_response": response.content,
-    }
 
 # Route after decide: tool needed → call_tool, otherwise → END
 def route_after_decide(state: AgentState) -> str:
@@ -187,7 +168,6 @@ def build_agent():
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("decide", decide_node)
     graph.add_node("call_tool", call_tool_node)
-    graph.add_node("respond", respond_node)
 
     graph.set_entry_point("retrieve")
     graph.add_edge("retrieve", "decide")
@@ -202,7 +182,6 @@ def build_agent():
     )
 
     graph.add_edge("call_tool", "decide")
-    graph.add_edge("respond", END)
 
     return graph.compile()
 

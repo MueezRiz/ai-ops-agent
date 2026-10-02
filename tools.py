@@ -25,7 +25,7 @@ def create_ticket(issue: str) -> dict:
         issue=input_data.issue,
         created_at="2024-01-15T10:30:00Z"
     )
-    return result.dict()
+    return result.model_dump()
 
 
 def escalate_to_human(reason: str) -> str:
